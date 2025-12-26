@@ -52,7 +52,7 @@ function excitementDisplay(score?: number, emojiFromApi?: string) {
 }
 
 const LABEL_PATTERNS: [RegExp, keyof typeof LABEL_COLORS][] = [
-  [/instant classic|back & forth|down to the wire|nail biter|comeback|high octane|shootout|hot start/i, 'flow'],
+  [/instant classic|back & forth|down to the wire|nail biter|q4 comeback|comeback|high octane|shootout|hot start/i, 'flow'],
   [/defensive|chaos|brick|free throw/i, 'defense'],
   [/triple double|scoring explosion|sniper|pickpocket|block party/i, 'player'],
   [/matchup|bout|tank bowl/i, 'matchup'],
@@ -66,7 +66,6 @@ function categoryForLabel(label: string): keyof typeof LABEL_COLORS {
 
 const LABEL_DISPLAY: Record<string, string> = {
   'no special indicators': '💤 Snoozer',
-  'first quarter fireworks': '🔥 Hot Start',
 };
 
 const LabelChip = ({ label }: { label: string }) => {
@@ -338,13 +337,13 @@ const styles = StyleSheet.create({
   },
   chip: {
     borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
-    minWidth: '48%',
-    maxWidth: '48%',
+    minWidth: '47%',
+    maxWidth: '47%',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 40,
+    minHeight: 36,
   },
   chipText: {
     color: colors.card,
