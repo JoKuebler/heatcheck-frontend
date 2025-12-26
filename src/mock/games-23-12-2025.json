@@ -1,0 +1,20 @@
+{
+	"games_date": "2025-12-23",
+	"total_games": 14,
+	"games": [
+		{"game_id": "0022500409", "home_team": {"id": 1610612766, "abbreviation": "CHA", "name": "Charlotte"}, "away_team": {"id": 1610612764, "abbreviation": "WAS", "name": "Washington"}, "labels": ["🎰 Tank Bowl", "🧹 Glass Cleaners"], "excitement_score": 2},
+		{"game_id": "0022500410", "home_team": {"id": 1610612755, "abbreviation": "PHI", "name": "Philadelphia"}, "away_team": {"id": 1610612751, "abbreviation": "BKN", "name": "Brooklyn"}, "labels": ["🎪 Chaos Ball", "🎯 Free Throw Parade"], "excitement_score": 2},
+		{"game_id": "0022500411", "home_team": {"id": 1610612737, "abbreviation": "ATL", "name": "Atlanta"}, "away_team": {"id": 1610612741, "abbreviation": "CHI", "name": "Chicago"}, "labels": ["📏 Nail Biter Finish", "🔥 4th Quarter Comeback", "👑 Triple Double Alert", "🎼 Assist Symphony"], "excitement_score": 4},
+		{"game_id": "0022500412", "home_team": {"id": 1610612739, "abbreviation": "CLE", "name": "Cleveland"}, "away_team": {"id": 1610612740, "abbreviation": "NOP", "name": "New Orleans"}, "labels": ["😴 Consider Highlights Only"], "excitement_score": 1},
+		{"game_id": "0022500413", "home_team": {"id": 1610612754, "abbreviation": "IND", "name": "Indiana"}, "away_team": {"id": 1610612749, "abbreviation": "MIL", "name": "Milwaukee"}, "labels": ["🔒 Defensive Slugfest"], "excitement_score": 1},
+		{"game_id": "0022500414", "home_team": {"id": 1610612748, "abbreviation": "MIA", "name": "Miami"}, "away_team": {"id": 1610612761, "abbreviation": "TOR", "name": "Toronto"}, "labels": ["🔒 Defensive Slugfest", "🎪 Chaos Ball"], "excitement_score": 2},
+		{"game_id": "0022500415", "home_team": {"id": 1610612742, "abbreviation": "DAL", "name": "Dallas"}, "away_team": {"id": 1610612743, "abbreviation": "DEN", "name": "Denver"}, "labels": ["📏 Nail Biter Finish", "🏃 High Octane", "🏜️ Free Throw Desert", "🎼 Assist Symphony"], "excitement_score": 4},
+		{"game_id": "0022500416", "home_team": {"id": 1610612750, "abbreviation": "MIN", "name": "Minnesota"}, "away_team": {"id": 1610612752, "abbreviation": "NYK", "name": "New York"}, "labels": ["💥 Scoring Explosion", "⚔️ Heavyweight Bout", "🧹 Glass Cleaners"], "excitement_score": 3},
+		{"game_id": "0022500417", "home_team": {"id": 1610612759, "abbreviation": "SAS", "name": "San Antonio"}, "away_team": {"id": 1610612760, "abbreviation": "OKC", "name": "Oklahoma City"}, "labels": ["🖐️ Pickpocket Alert", "🏆 Elite Matchup"], "excitement_score": 2},
+		{"game_id": "0022500418", "home_team": {"id": 1610612756, "abbreviation": "PHX", "name": "Phoenix"}, "away_team": {"id": 1610612747, "abbreviation": "LAL", "name": "Los Angeles"}, "labels": ["⚔️ Heavyweight Bout"], "excitement_score": 1},
+		{"game_id": "0022500419", "home_team": {"id": 1610612762, "abbreviation": "UTA", "name": "Utah"}, "away_team": {"id": 1610612763, "abbreviation": "MEM", "name": "Memphis"}, "labels": ["🎯 3-Point Shootout", "🏃 High Octane", "🎼 Assist Symphony"], "excitement_score": 3},
+		{"game_id": "0022500420", "home_team": {"id": 1610612757, "abbreviation": "POR", "name": "Portland"}, "away_team": {"id": 1610612753, "abbreviation": "ORL", "name": "Orlando"}, "labels": ["📏 Nail Biter Finish"], "excitement_score": 1},
+		{"game_id": "0022500421", "home_team": {"id": 1610612758, "abbreviation": "SAC", "name": "Sacramento"}, "away_team": {"id": 1610612765, "abbreviation": "DET", "name": "Detroit"}, "labels": ["🏃 High Octane", "🖐️ Pickpocket Alert"], "excitement_score": 2},
+		{"game_id": "0022500422", "home_team": {"id": 1610612746, "abbreviation": "LAC", "name": "LA Clippers"}, "away_team": {"id": 1610612745, "abbreviation": "HOU", "name": "Houston"}, "labels": ["💥 Scoring Explosion"], "excitement_score": 2}
+	]
+}
