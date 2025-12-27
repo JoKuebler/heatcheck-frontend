@@ -52,8 +52,8 @@ function excitementDisplay(score?: number, emojiFromApi?: string) {
 }
 
 const LABEL_PATTERNS: [RegExp, keyof typeof LABEL_COLORS][] = [
-  [/instant classic|back & forth|down to the wire|nail biter|q4 comeback|comeback|high octane|shootout|hot start/i, 'flow'],
-  [/defensive|chaos|brick|free throw/i, 'defense'],
+  [/instant classic|back & forth|down to the wire|nail biter|q4 comeback|comeback|high octane|shootout|hot start|game winner/i, 'flow'],
+  [/defensive|chaos|brick|free throw|clutch stop/i, 'defense'],
   [/triple double|scoring explosion|sniper|pickpocket|block party/i, 'player'],
   [/matchup|bout|tank bowl/i, 'matchup'],
   [/double ot|triple ot|heartbreaker|marathon|epic/i, 'rare'],
