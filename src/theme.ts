@@ -6,13 +6,14 @@ export const colors = {
   textSecondary: '#9BA7B6',
   chipBg: '#1F2937',
   chipText: '#E5E7EB',
-  // Palette clusters (subtle, muted)
-  accentMatchup: '#C29A5B',   // matchup stakes
-  accentFlow: '#5F9BA5',      // flow & finish
-  accentPlayer: '#D48A7A',    // player stats/feats
-  accentStat: '#8A90C2',      // ugly beautiful / defense
-  accentRare: '#B383AA',      // statistically rare
-  accentMeta: '#9AA6B5',      // skip/neutral
+  // Palette clusters (distinct hues around color wheel)
+  accentMatchup: '#D4A24C',   // gold/amber - matchup stakes
+  accentFlow: '#4DABB8',      // cyan/teal - game flow
+  accentTeamStats: '#52B788', // green - team stats
+  accentPlayer: '#E07856',    // orange/coral - player stats
+  accentStat: '#9D7CD8',      // purple - ugly beautiful
+  accentRare: '#E05A9C',      // pink/magenta - statistically rare
+  accentMeta: '#7A8899',      // gray/slate - skip signals
   // Excitement score borders (boring → exciting: charcoal to warm gold)
   scoreBorder1: '#2B2F36',  // very dull
   scoreBorder2: '#3C2F39',  // muted maroon

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FlatList, View, Text, StyleSheet, StatusBar, ActivityIndicator, RefreshControl, Pressable, Linking, Alert } from 'react-native';
+import { FlatList, View, Text, StyleSheet, StatusBar, ActivityIndicator, RefreshControl, Pressable, Linking, Alert, Modal, Switch } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, spacing, radius, fonts } from './src/theme';
@@ -9,6 +9,7 @@ import { getTeamVisual } from './src/teamPalette';
 const API_BASE = 'https://app-production-2fb0.up.railway.app/api/games';
 const CACHE_KEY = 'games_cache_latest';
 const HIGHLIGHT_WARNING_KEY = 'highlight_warning_seen_v1';
+const SETTINGS_KEY = 'label_group_settings_v1';
 
 const formatDate = (iso: string) => {
   if (!iso) return '';
@@ -18,16 +19,31 @@ const formatDate = (iso: string) => {
 };
 
 const LEGEND = [
-  { name: 'Matchup Stakes', color: colors.accentMatchup },
-  { name: 'Flow & Finish', color: colors.accentFlow },
-  { name: 'Player Stats', color: colors.accentPlayer },
-  { name: 'Ugly Beautiful', color: colors.accentStat },
-  { name: 'Statistically Rare', color: colors.accentRare },
-  { name: 'Skip Signals', color: colors.accentMeta },
+  { name: 'Matchup Stakes', color: colors.accentMatchup, key: 'matchup' },
+  { name: 'Game Flow', color: colors.accentFlow, key: 'flow' },
+  { name: 'Team Stats', color: colors.accentTeamStats, key: 'teamStats' },
+  { name: 'Player Stats', color: colors.accentPlayer, key: 'player' },
+  { name: 'Ugly Beautiful', color: colors.accentStat, key: 'defense' },
+  { name: 'Statistically Rare', color: colors.accentRare, key: 'rare' },
+  { name: 'Skip Signals', color: colors.accentMeta, key: 'meta' },
 ];
+
+type GroupKey = 'matchup' | 'flow' | 'teamStats' | 'player' | 'defense' | 'rare' | 'meta';
+type GroupSettings = Record<GroupKey, boolean>;
+
+const DEFAULT_SETTINGS: GroupSettings = {
+  matchup: true,
+  flow: true,
+  teamStats: true,
+  player: true,
+  defense: true,
+  rare: true,
+  meta: true,
+};
 
 const LABEL_COLORS: Record<string, string> = {
   flow: colors.accentFlow,
+  teamStats: colors.accentTeamStats,
   defense: colors.accentStat,
   player: colors.accentPlayer,
   matchup: colors.accentMatchup,
@@ -35,14 +51,26 @@ const LABEL_COLORS: Record<string, string> = {
   meta: colors.accentMeta,
 };
 
-const BUCKET_ORDER: Array<keyof typeof LABEL_COLORS> = ['matchup', 'flow', 'player', 'defense', 'rare', 'meta'];
+const BUCKET_ORDER: Array<keyof typeof LABEL_COLORS> = ['matchup', 'flow', 'teamStats', 'player', 'defense', 'rare', 'meta'];
 
 const SCORE_BORDERS = [
   colors.scoreBorder1, colors.scoreBorder2, colors.scoreBorder3, colors.scoreBorder4, colors.scoreBorder5,
   colors.scoreBorder6, colors.scoreBorder7, colors.scoreBorder8, colors.scoreBorder9, colors.scoreBorder10,
 ];
 
-const SCORE_EMOJIS: [number, string][] = [[9, '💎'], [7, '⚡️'], [5, '✨'], [3, '🪫'], [0, '💀']];
+// Score emoji tiers: [minScore, emoji] - 10 levels from skull to diamond
+const SCORE_EMOJIS: [number, string][] = [
+  [9.5, '💎'],  // Diamond - absolute gem
+  [8.5, '🔥'],  // Fire - scorcher
+  [7.5, '⚡️'],  // Lightning - electric
+  [6.5, '✨'],  // Sparkles - pretty good
+  [5.5, '👀'],  // Eyes - watchable
+  [4.5, '🫤'],  // Meh face - mid
+  [3.5, '😴'],  // Sleepy - snoozer
+  [2.5, '🪫'],  // Low battery - draining
+  [1.5, '💤'],  // Zzz - skip it
+  [0, '💀'],    // Skull - unwatchable
+];
 
 function excitementDisplay(score?: number, emojiFromApi?: string) {
   const value = score ?? 0;
@@ -52,12 +80,13 @@ function excitementDisplay(score?: number, emojiFromApi?: string) {
 }
 
 const LABEL_PATTERNS: [RegExp, keyof typeof LABEL_COLORS][] = [
-  [/instant classic|back & forth|down to the wire|nail biter|q4 comeback|comeback|high octane|shootout|hot start|game winner/i, 'flow'],
-  [/defensive|chaos|brick|free throw|clutch stop/i, 'defense'],
+  [/instant classic|matchup|bout|tank bowl/i, 'matchup'],
+  [/back & forth|down to the wire|nail biter|q4 comeback|comeback|hot start|game winner|clutch stop/i, 'flow'],
+  [/shootout|high octane|glass cleaner|assist symphony/i, 'teamStats'],
   [/triple double|scoring explosion|sniper|pickpocket|block party/i, 'player'],
-  [/matchup|bout|tank bowl/i, 'matchup'],
-  [/double ot|triple ot|heartbreaker|marathon|epic/i, 'rare'],
-  [/highlights|blowout|snoozer/i, 'meta'],
+  [/defensive|chaos|brick|free throw parade/i, 'defense'],
+  [/double ot|triple ot|heartbreaker|marathon|epic|free flowing/i, 'rare'],
+  [/easy win|blowout|snoozer/i, 'meta'],
 ];
 
 function categoryForLabel(label: string): keyof typeof LABEL_COLORS {
@@ -88,10 +117,70 @@ const TeamBadge = ({ abbreviation }: { abbreviation: string }) => {
   );
 };
 
-const GameCard = ({ game, onOpenHighlights }: { game: Game; onOpenHighlights: (game: Game) => void }) => {
+const SettingsModal = ({ 
+  visible, 
+  onClose, 
+  settings, 
+  onToggle 
+}: { 
+  visible: boolean; 
+  onClose: () => void; 
+  settings: GroupSettings;
+  onToggle: (key: GroupKey) => void;
+}) => {
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Settings</Text>
+            <Pressable onPress={onClose} style={styles.closeButton}>
+              <Text style={styles.closeButtonText}>✕</Text>
+            </Pressable>
+          </View>
+          
+          <Text style={styles.sectionTitle}>Label Groups</Text>
+          <Text style={styles.sectionSubtitle}>Toggle which label categories to show</Text>
+          
+          {LEGEND.map((item) => (
+            <View key={item.key} style={styles.settingRow}>
+              <View style={styles.settingLabelRow}>
+                <View style={[styles.settingSwatch, { backgroundColor: item.color }]} />
+                <Text style={styles.settingLabel}>{item.name}</Text>
+              </View>
+              <Switch
+                value={settings[item.key as GroupKey]}
+                onValueChange={() => onToggle(item.key as GroupKey)}
+                trackColor={{ false: colors.border, true: item.color }}
+                thumbColor={colors.textPrimary}
+              />
+            </View>
+          ))}
+          
+          <View style={styles.modalFooter}>
+            <Text style={styles.footerText}>Hidden labels won't appear on game cards</Text>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+const GameCard = ({ game, onOpenHighlights, groupSettings }: { game: Game; onOpenHighlights: (game: Game) => void; groupSettings: GroupSettings }) => {
   const home = game.home_team;
   const away = game.away_team;
   const excitement = excitementDisplay(game.excitement_score, game.excitement_emoji);
+
+  // Filter labels based on group settings
+  const visibleLabels = game.labels.filter((label) => {
+    const category = categoryForLabel(label);
+    return groupSettings[category];
+  });
 
   return (
     <Pressable style={styles.card} onPress={() => onOpenHighlights(game)}>
@@ -110,17 +199,19 @@ const GameCard = ({ game, onOpenHighlights }: { game: Game; onOpenHighlights: (g
           <Text style={styles.excitementText}>{excitement.value.toFixed(1)}</Text>
         </View>
       </View>
-      <View style={styles.labelsWrap}>
-        {[...game.labels]
-          .sort((a, b) => {
-            const ca = categoryForLabel(a);
-            const cb = categoryForLabel(b);
-            return BUCKET_ORDER.indexOf(ca) - BUCKET_ORDER.indexOf(cb);
-          })
-          .map((l) => (
-            <LabelChip key={l} label={l} />
-          ))}
-      </View>
+      {visibleLabels.length > 0 && (
+        <View style={styles.labelsWrap}>
+          {[...visibleLabels]
+            .sort((a, b) => {
+              const ca = categoryForLabel(a);
+              const cb = categoryForLabel(b);
+              return BUCKET_ORDER.indexOf(ca) - BUCKET_ORDER.indexOf(cb);
+            })
+            .map((l) => (
+              <LabelChip key={l} label={l} />
+            ))}
+        </View>
+      )}
     </Pressable>
   );
 };
@@ -132,6 +223,33 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [hasSeenHighlightWarning, setHasSeenHighlightWarning] = useState<boolean>(false);
+  const [settingsVisible, setSettingsVisible] = useState<boolean>(false);
+  const [groupSettings, setGroupSettings] = useState<GroupSettings>(DEFAULT_SETTINGS);
+
+  const loadSettings = async () => {
+    try {
+      const saved = await AsyncStorage.getItem(SETTINGS_KEY);
+      if (saved) {
+        setGroupSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(saved) });
+      }
+    } catch (e) {
+      // ignore storage errors
+    }
+  };
+
+  const saveSettings = async (newSettings: GroupSettings) => {
+    try {
+      await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
+    } catch (e) {
+      // ignore storage errors
+    }
+  };
+
+  const toggleGroup = (key: GroupKey) => {
+    const newSettings = { ...groupSettings, [key]: !groupSettings[key] };
+    setGroupSettings(newSettings);
+    saveSettings(newSettings);
+  };
 
   const loadFromCache = async () => {
     try {
@@ -178,6 +296,7 @@ export default function App() {
     (async () => {
       await loadFromCache();
       await loadHighlightWarning();
+      await loadSettings();
       setLoading(true);
       await fetchGames();
     })();
@@ -227,10 +346,20 @@ export default function App() {
   };
 
   const data = games;
+  
+  // Filter visible legend items based on settings
+  const visibleLegend = LEGEND.filter((item) => groupSettings[item.key as GroupKey]);
+  
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" />
+        <SettingsModal
+          visible={settingsVisible}
+          onClose={() => setSettingsVisible(false)}
+          settings={groupSettings}
+          onToggle={toggleGroup}
+        />
         {loading && data.length === 0 ? (
           <View style={styles.center}>
             <ActivityIndicator color={colors.textPrimary} />
@@ -242,13 +371,20 @@ export default function App() {
             keyExtractor={(item) => item.game_id}
             contentContainerStyle={styles.list}
             ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
-            renderItem={({ item }) => <GameCard game={item} onOpenHighlights={openHighlights} />}
+            renderItem={({ item }) => <GameCard game={item} onOpenHighlights={openHighlights} groupSettings={groupSettings} />}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textPrimary} />}
             ListHeaderComponent={
               gamesDate ? (
                 <View style={styles.headerRow}>
-                  <Text style={styles.headerKicker}>Previous night</Text>
-                  <Text style={styles.headerText}>{formatDate(gamesDate)}</Text>
+                  <View style={styles.headerTitleRow}>
+                    <View>
+                      <Text style={styles.headerKicker}>Previous night</Text>
+                      <Text style={styles.headerText}>{formatDate(gamesDate)}</Text>
+                    </View>
+                    <Pressable onPress={() => setSettingsVisible(true)} style={styles.settingsButton}>
+                      <Text style={styles.settingsButtonText}>⚙️</Text>
+                    </Pressable>
+                  </View>
                 </View>
               ) : null
             }
@@ -259,7 +395,7 @@ export default function App() {
             }
             ListFooterComponent={
               <View style={styles.legendWrap}>
-                {LEGEND.map((item) => (
+                {visibleLegend.map((item) => (
                   <View key={item.name} style={styles.legendRow}>
                     <View style={[styles.legendSwatch, { backgroundColor: item.color }]} />
                     <Text style={styles.legendName}>{item.name}</Text>
@@ -437,5 +573,95 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontSize: fonts.subtitle,
     textAlign: 'center',
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  settingsButton: {
+    padding: spacing.xs,
+  },
+  settingsButtonText: {
+    fontSize: 22,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  modalContent: {
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    width: '100%',
+    maxWidth: 340,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  modalTitle: {
+    color: colors.textPrimary,
+    fontSize: fonts.title,
+    fontWeight: '700',
+  },
+  closeButton: {
+    padding: spacing.xs,
+  },
+  closeButtonText: {
+    color: colors.textSecondary,
+    fontSize: 24,
+    fontWeight: '600',
+  },
+  sectionTitle: {
+    color: colors.textPrimary,
+    fontSize: fonts.subtitle,
+    fontWeight: '600',
+    marginBottom: spacing.xs,
+  },
+  sectionSubtitle: {
+    color: colors.textSecondary,
+    fontSize: fonts.label,
+    marginBottom: spacing.md,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  settingLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  settingSwatch: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+  },
+  settingLabel: {
+    color: colors.textPrimary,
+    fontSize: fonts.body,
+    fontWeight: '500',
+  },
+  modalFooter: {
+    marginTop: spacing.md,
+    paddingTop: spacing.sm,
+  },
+  footerText: {
+    color: colors.textSecondary,
+    fontSize: fonts.label,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });
