@@ -202,7 +202,7 @@ const SettingsModal = ({
           </View>
           
           <View style={styles.modalFooter}>
-            <Text style={styles.footerText}>Made with 🏀 for fans who watch games on delay</Text>
+            <Text style={styles.footerText}>Made with ❤️ for next-morning 🏀</Text>
           </View>
         </View>
       </View>
