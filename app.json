@@ -4,11 +4,11 @@
     "slug": "heatcheck",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "dark",
     "icon": "./assets/images/icon.png",
+    "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/images/splash-icon.png",
-      "resizeMode": "contain",
+      "image": "./assets/images/splash-test.png",
+      "resizeMode": "cover",
       "backgroundColor": "#0f1419"
     },
     "assetBundlePatterns": [
