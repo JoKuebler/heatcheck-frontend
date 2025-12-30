@@ -1,10 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { FlatList, View, Text, StyleSheet, StatusBar, ActivityIndicator, RefreshControl, Pressable, Linking, Alert, Modal, Switch } from 'react-native';
+import { FlatList, View, Text, StyleSheet, StatusBar, ActivityIndicator, RefreshControl, Pressable, Linking, Alert, Modal, Switch, Platform } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, spacing, radius, fonts } from './src/theme';
 import type { Game } from './src/types';
 import { getTeamVisual } from './src/teamPalette';
+import {
+  enablePushNotifications,
+  disablePushNotifications,
+  isNotificationsEnabled,
+  isPushNotificationsSupported,
+} from './src/notifications';
 
 const API_BASE = 'https://app-production-2fb0.up.railway.app/api/games';
 const CACHE_KEY = 'games_cache_latest';
@@ -124,12 +130,18 @@ const SettingsModal = ({
   visible, 
   onClose, 
   settings, 
-  onToggle 
+  onToggle,
+  notificationsEnabled,
+  notificationsSupported,
+  onToggleNotifications,
 }: { 
   visible: boolean; 
   onClose: () => void; 
   settings: GroupSettings;
   onToggle: (key: GroupKey) => void;
+  notificationsEnabled: boolean;
+  notificationsSupported: boolean;
+  onToggleNotifications: () => void;
 }) => {
   const openTipJar = () => {
     Linking.openURL(TIP_JAR_URL).catch(() => {
@@ -178,6 +190,31 @@ const SettingsModal = ({
               />
             </View>
           ))}
+
+          {/* Notification Section */}
+          <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>Notifications</Text>
+          <Text style={styles.sectionSubtitle}>Get alerted when exciting games happen</Text>
+          
+          <View style={styles.settingRow}>
+            <View style={styles.settingLabelRow}>
+              <Text style={styles.notificationIcon}>🔔</Text>
+              <View>
+                <Text style={styles.settingLabel}>Morning Alert</Text>
+                <Text style={styles.notificationSubtext}>
+                  {notificationsSupported 
+                    ? 'One daily notification'
+                    : 'Requires a physical device'}
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={notificationsEnabled}
+              onValueChange={onToggleNotifications}
+              disabled={!notificationsSupported}
+              trackColor={{ false: colors.border, true: colors.accentFlow }}
+              thumbColor={colors.textPrimary}
+            />
+          </View>
           
           {/* Tip Jar Section */}
           <View style={styles.tipSection}>
@@ -279,6 +316,42 @@ export default function App() {
   const [hasSeenHighlightWarning, setHasSeenHighlightWarning] = useState<boolean>(false);
   const [settingsVisible, setSettingsVisible] = useState<boolean>(false);
   const [groupSettings, setGroupSettings] = useState<GroupSettings>(DEFAULT_SETTINGS);
+  const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(false);
+  const [notificationsSupported, setNotificationsSupported] = useState<boolean>(false);
+
+  const loadNotificationStatus = async () => {
+    try {
+      const supported = await isPushNotificationsSupported();
+      setNotificationsSupported(supported);
+      
+      if (supported) {
+        const enabled = await isNotificationsEnabled();
+        setNotificationsEnabled(enabled);
+      }
+    } catch (e) {
+      // ignore errors
+    }
+  };
+
+  const handleToggleNotifications = async () => {
+    if (notificationsEnabled) {
+      // Disable notifications
+      await disablePushNotifications();
+      setNotificationsEnabled(false);
+    } else {
+      // Enable notifications
+      const result = await enablePushNotifications();
+      if (result.success) {
+        setNotificationsEnabled(true);
+      } else {
+        Alert.alert(
+          'Could not enable notifications',
+          result.error || 'Please check your device settings.',
+          [{ text: 'OK' }]
+        );
+      }
+    }
+  };
 
   const loadSettings = async () => {
     try {
@@ -351,6 +424,7 @@ export default function App() {
       await loadFromCache();
       await loadHighlightWarning();
       await loadSettings();
+      await loadNotificationStatus();
       setLoading(true);
       await fetchGames();
     })();
@@ -413,6 +487,9 @@ export default function App() {
           onClose={() => setSettingsVisible(false)}
           settings={groupSettings}
           onToggle={toggleGroup}
+          notificationsEnabled={notificationsEnabled}
+          notificationsSupported={notificationsSupported}
+          onToggleNotifications={handleToggleNotifications}
         />
         {loading && data.length === 0 ? (
           <View style={styles.center}>
@@ -735,6 +812,15 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: fonts.body,
     fontWeight: '500',
+  },
+  notificationIcon: {
+    fontSize: 20,
+    marginRight: spacing.xs,
+  },
+  notificationSubtext: {
+    color: colors.textSecondary,
+    fontSize: fonts.label,
+    marginTop: 2,
   },
   tipSection: {
     marginTop: spacing.lg,
