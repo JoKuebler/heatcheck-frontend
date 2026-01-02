@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FlatList, View, Text, StyleSheet, StatusBar, ActivityIndicator, RefreshControl, Pressable, Linking, Alert, Modal, Switch, Platform } from 'react-native';
+import { View, Text, StyleSheet, StatusBar, ActivityIndicator, RefreshControl, Pressable, Linking, Alert, Modal, Switch, Animated } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, spacing, radius, fonts } from './src/theme';
@@ -11,6 +11,11 @@ import {
   isNotificationsEnabled,
   isPushNotificationsSupported,
 } from './src/notifications';
+import { 
+  AnimatedScorePill, 
+  AnimatedPressable, 
+  useAnimatedHeader 
+} from './src/components/AnimatedComponents';
 
 const API_BASE = 'https://app-production-2fb0.up.railway.app/api/games';
 const CACHE_KEY = 'games_cache_latest';
@@ -247,7 +252,7 @@ const SettingsModal = ({
   );
 };
 
-const GameCard = ({ game, onOpenHighlights, groupSettings }: { game: Game; onOpenHighlights: (game: Game) => void; groupSettings: GroupSettings }) => {
+const GameCard = ({ game, onOpenHighlights, groupSettings, isVisible }: { game: Game; onOpenHighlights: (game: Game) => void; groupSettings: GroupSettings; isVisible: boolean }) => {
   const home = game.home_team;
   const away = game.away_team;
   const isPending = game.status === 'pending';
@@ -259,7 +264,6 @@ const GameCard = ({ game, onOpenHighlights, groupSettings }: { game: Game; onOpe
     return groupSettings[category];
   });
 
-  // Don't make pending games clickable for highlights
   const handlePress = () => {
     if (!isPending) {
       onOpenHighlights(game);
@@ -267,7 +271,11 @@ const GameCard = ({ game, onOpenHighlights, groupSettings }: { game: Game; onOpe
   };
 
   return (
-    <Pressable style={[styles.card, isPending && styles.cardPending]} onPress={handlePress}>
+    <AnimatedPressable 
+      onPress={handlePress} 
+      disabled={isPending}
+      style={[styles.card, isPending && styles.cardPending]}
+    >
       <View style={styles.row}>
         <View style={styles.teamRow}>
           <TeamBadge abbreviation={away.abbreviation} />
@@ -278,17 +286,7 @@ const GameCard = ({ game, onOpenHighlights, groupSettings }: { game: Game; onOpe
         </View>
       </View>
       <View style={styles.metaRow}>
-        {isPending ? (
-          <View style={[styles.excitementPill, styles.pendingPill]}>
-            <Text style={styles.pendingText}>⏳</Text>
-            <Text style={styles.pendingText}>{game.status_text || 'Pending'}</Text>
-          </View>
-        ) : (
-          <View style={[styles.excitementPill, { borderColor: excitement.border }]}>
-            <Text style={[styles.excitementText, { color: excitement.border }]}>{excitement.emoji}</Text>
-            <Text style={styles.excitementText}>{excitement.value.toFixed(1)}</Text>
-          </View>
-        )}
+        <AnimatedScorePill excitement={excitement} isPending={isPending} isVisible={isVisible} />
       </View>
       {!isPending && visibleLabels.length > 0 && (
         <View style={styles.labelsWrap}>
@@ -303,7 +301,7 @@ const GameCard = ({ game, onOpenHighlights, groupSettings }: { game: Game; onOpe
             ))}
         </View>
       )}
-    </Pressable>
+    </AnimatedPressable>
   );
 };
 
@@ -318,6 +316,7 @@ export default function App() {
   const [groupSettings, setGroupSettings] = useState<GroupSettings>(DEFAULT_SETTINGS);
   const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(false);
   const [notificationsSupported, setNotificationsSupported] = useState<boolean>(false);
+  const [visibleGameIds, setVisibleGameIds] = useState<Set<string>>(new Set());
 
   const loadNotificationStatus = async () => {
     try {
@@ -477,10 +476,75 @@ export default function App() {
   
   // Filter visible legend items based on settings
   const visibleLegend = LEGEND.filter((item) => groupSettings[item.key as GroupKey]);
+
+  // Scroll-based header animation (shrinking effect)
+  const { 
+    headerShadowOpacity, 
+    headerPaddingVertical, 
+    titleFontSize, 
+    kickerOpacity, 
+    kickerHeight,
+    onScroll 
+  } = useAnimatedHeader();
+  
+  // Header component rendered outside FlatList for sticky behavior
+  const renderHeader = () => {
+    if (!gamesDate) return null;
+    return (
+      <Animated.View style={[
+        styles.stickyHeader,
+        {
+          shadowOpacity: headerShadowOpacity,
+          paddingVertical: headerPaddingVertical,
+        }
+      ]}>
+        <View style={styles.headerTitleRow}>
+          <View style={styles.headerTitleLeft}>
+            <Animated.Text style={[
+              styles.headerKicker, 
+              { 
+                opacity: kickerOpacity,
+                height: kickerHeight,
+              }
+            ]}>
+              Previous night
+            </Animated.Text>
+            <Animated.Text style={[
+              styles.headerText, 
+              { fontSize: titleFontSize }
+            ]}>
+              {formatDate(gamesDate)}
+            </Animated.Text>
+          </View>
+          <Pressable onPress={() => setSettingsVisible(true)} style={styles.settingsButton}>
+            <View style={styles.settingsIcon}>
+              <View style={styles.settingsBar} />
+              <View style={styles.settingsBar} />
+              <View style={styles.settingsBar} />
+            </View>
+          </Pressable>
+        </View>
+      </Animated.View>
+    );
+  };
+
+  // Track which game cards are visible on screen
+  const onViewableItemsChanged = React.useRef(({ viewableItems }: { viewableItems: Array<{ item: Game; isViewable: boolean }> }) => {
+    const newVisibleIds = new Set(viewableItems.filter(v => v.isViewable).map(v => v.item.game_id));
+    setVisibleGameIds(prev => {
+      // Merge with previous to keep track of all items that have been visible
+      const merged = new Set([...prev, ...newVisibleIds]);
+      return merged;
+    });
+  }).current;
+
+  const viewabilityConfig = React.useRef({
+    itemVisiblePercentThreshold: 50, // Item is considered visible when 50% is shown
+  }).current;
   
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <StatusBar barStyle="light-content" />
         <SettingsModal
           visible={settingsVisible}
@@ -491,38 +555,32 @@ export default function App() {
           notificationsSupported={notificationsSupported}
           onToggleNotifications={handleToggleNotifications}
         />
+        {/* Sticky Header */}
+        {renderHeader()}
         {loading && data.length === 0 ? (
           <View style={styles.center}>
             <ActivityIndicator color={colors.textPrimary} />
             <Text style={styles.loadingText}>Loading games...</Text>
           </View>
         ) : (
-          <FlatList
+          <Animated.FlatList
             data={data}
             keyExtractor={(item) => item.game_id}
             contentContainerStyle={styles.list}
             ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
-            renderItem={({ item }) => <GameCard game={item} onOpenHighlights={openHighlights} groupSettings={groupSettings} />}
+            renderItem={({ item }) => (
+              <GameCard 
+                game={item} 
+                onOpenHighlights={openHighlights} 
+                groupSettings={groupSettings} 
+                isVisible={visibleGameIds.has(item.game_id)}
+              />
+            )}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textPrimary} />}
-            ListHeaderComponent={
-              gamesDate ? (
-                <View style={styles.headerRow}>
-                  <View style={styles.headerTitleRow}>
-                    <View style={styles.headerTitleLeft}>
-                      <Text style={styles.headerKicker}>Previous night</Text>
-                      <Text style={styles.headerText}>{formatDate(gamesDate)}</Text>
-                    </View>
-                    <Pressable onPress={() => setSettingsVisible(true)} style={styles.settingsButton}>
-                      <View style={styles.settingsIcon}>
-                        <View style={styles.settingsBar} />
-                        <View style={styles.settingsBar} />
-                        <View style={styles.settingsBar} />
-                      </View>
-                    </Pressable>
-                  </View>
-                </View>
-              ) : null
-            }
+            onScroll={onScroll}
+            scrollEventThrottle={16}
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={viewabilityConfig}
             ListEmptyComponent={
               <View style={styles.center}>
                 <Text style={styles.loadingText}>{error || 'No games found'}</Text>
@@ -553,7 +611,7 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#000',
   },
   list: {
     padding: spacing.lg,
@@ -639,12 +697,21 @@ const styles = StyleSheet.create({
   },
   headerText: {
     color: colors.textPrimary,
-    marginBottom: spacing.sm,
-    fontSize: fonts.title,
+    fontSize: 26,
     fontWeight: '700',
   },
   headerRow: {
     marginBottom: spacing.md,
+  },
+  stickyHeader: {
+    backgroundColor: '#000',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 4,
+    zIndex: 10,
   },
   headerKicker: {
     color: colors.textSecondary,
@@ -670,7 +737,7 @@ const styles = StyleSheet.create({
   legendWrap: {
     marginTop: spacing.md,
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
+    paddingBottom: 0,
     gap: spacing.sm,
   },
   legendRow: {
@@ -692,36 +759,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     marginTop: spacing.sm,
-  },
-  excitementPill: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.md,
-    minWidth: 110,
-    minHeight: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  excitementText: {
-    color: colors.textPrimary,
-    fontWeight: '800',
-    fontSize: fonts.subtitle,
-    textAlign: 'center',
-  },
-  pendingPill: {
-    borderColor: colors.textSecondary,
-    borderStyle: 'dashed',
-  },
-  pendingText: {
-    color: colors.textSecondary,
-    fontWeight: '600',
-    fontSize: fonts.body,
-    textAlign: 'center',
   },
   headerTitleRow: {
     flexDirection: 'row',
