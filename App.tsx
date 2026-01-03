@@ -97,15 +97,15 @@ const SettingsModal = ({
   };
 
   const openSupport = () => {
-    Linking.openURL('https://jokuebler.github.io/heatcheck-support/').catch(() => {});
+    Linking.openURL('https://jokuebler.github.io/heatcheckr-support/').catch(() => {});
   };
 
   const openPrivacy = () => {
-    Linking.openURL('https://jokuebler.github.io/heatcheck-support/#privacy').catch(() => {});
+    Linking.openURL('https://jokuebler.github.io/heatcheckr-support/#privacy').catch(() => {});
   };
 
   const openTerms = () => {
-    Linking.openURL('https://jokuebler.github.io/heatcheck-support/#terms').catch(() => {});
+    Linking.openURL('https://jokuebler.github.io/heatcheckr-support/#terms').catch(() => {});
   };
 
   return (
