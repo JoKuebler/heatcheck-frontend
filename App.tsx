@@ -6,6 +6,23 @@ import { colors, spacing, radius, fonts } from './src/theme';
 import type { Game } from './src/types';
 import { getTeamVisual } from './src/teamPalette';
 import {
+  LEGEND,
+  GroupKey,
+  GroupSettings,
+  DEFAULT_SETTINGS,
+  LABEL_COLORS,
+  BUCKET_ORDER,
+  SCORE_BORDERS,
+  SCORE_EMOJIS,
+  LABEL_PATTERNS,
+  LABEL_DISPLAY,
+  API_BASE,
+  CACHE_KEY,
+  HIGHLIGHT_WARNING_KEY,
+  SETTINGS_KEY,
+  TIP_JAR_URL
+} from './src/constants';
+import {
   enablePushNotifications,
   disablePushNotifications,
   isNotificationsEnabled,
@@ -17,96 +34,22 @@ import {
   useAnimatedHeader 
 } from './src/components/AnimatedComponents';
 
-const API_BASE = 'https://app-production-2fb0.up.railway.app/api/games';
-const CACHE_KEY = 'games_cache_latest';
-const HIGHLIGHT_WARNING_KEY = 'highlight_warning_seen_v1';
-const SETTINGS_KEY = 'label_group_settings_v1';
-
-const formatDate = (iso: string) => {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-};
-
-const LEGEND = [
-  { name: 'Matchup Stakes', color: colors.accentMatchup, key: 'matchup' },
-  { name: 'Game Flow', color: colors.accentFlow, key: 'flow' },
-  { name: 'Team Stats', color: colors.accentTeamStats, key: 'teamStats' },
-  { name: 'Player Stats', color: colors.accentPlayer, key: 'player' },
-  { name: 'Ugly Beautiful', color: colors.accentStat, key: 'defense' },
-  { name: 'Statistically Rare', color: colors.accentRare, key: 'rare' },
-  { name: 'Skip Signals', color: colors.accentMeta, key: 'meta' },
-];
-
-type GroupKey = 'matchup' | 'flow' | 'teamStats' | 'player' | 'defense' | 'rare' | 'meta';
-type GroupSettings = Record<GroupKey, boolean>;
-
-const DEFAULT_SETTINGS: GroupSettings = {
-  matchup: true,
-  flow: true,
-  teamStats: true,
-  player: true,
-  defense: true,
-  rare: true,
-  meta: true,
-};
-
-const LABEL_COLORS: Record<string, string> = {
-  flow: colors.accentFlow,
-  teamStats: colors.accentTeamStats,
-  defense: colors.accentStat,
-  player: colors.accentPlayer,
-  matchup: colors.accentMatchup,
-  rare: colors.accentRare,
-  meta: colors.accentMeta,
-};
-
-const BUCKET_ORDER: Array<keyof typeof LABEL_COLORS> = ['matchup', 'flow', 'teamStats', 'player', 'defense', 'rare', 'meta'];
-
-const SCORE_BORDERS = [
-  colors.scoreBorder1, colors.scoreBorder2, colors.scoreBorder3, colors.scoreBorder4, colors.scoreBorder5,
-  colors.scoreBorder6, colors.scoreBorder7, colors.scoreBorder8, colors.scoreBorder9, colors.scoreBorder10,
-];
-
-// Score emoji tiers: [minScore, emoji] - 10 levels from skull to diamond
-const SCORE_EMOJIS: [number, string][] = [
-  [9.5, '💎'],  // Diamond - absolute gem
-  [8.5, '🔥'],  // Fire - scorcher
-  [7.5, '⚡️'],  // Lightning - electric
-  [6.5, '✨'],  // Sparkles - pretty good
-  [5.5, '👀'],  // Eyes - watchable
-  [4.5, '😐'],  // Neutral face - mid
-  [3.5, '😴'],  // Sleepy - snoozer
-  [2.5, '🪫'],  // Low battery - draining
-  [1.5, '🤮'],  // Vomit - skip it
-  [0, '💀'],    // Skull - unwatchable
-];
-
-function excitementDisplay(score?: number, emojiFromApi?: string) {
+export function excitementDisplay(score?: number, emojiFromApi?: string) {
   const value = score ?? 0;
   const bucket = Math.min(10, Math.max(1, Math.floor(value)));
   const emoji = emojiFromApi || SCORE_EMOJIS.find(([threshold]) => bucket >= threshold)?.[1] || '✨';
   return { value, emoji, border: SCORE_BORDERS[bucket - 1] };
 }
 
-const LABEL_PATTERNS: [RegExp, keyof typeof LABEL_COLORS][] = [
-  [/instant classic|matchup|bout|tank bowl/i, 'matchup'],
-  [/back & forth|down to the wire|nail biter|q4 comeback|comeback|hot start|game winner|clutch stop/i, 'flow'],
-  [/shootout|high octane|glass cleaner|assist symphony/i, 'teamStats'],
-  [/triple double|scoring explosion|sniper|pickpocket|block party/i, 'player'],
-  [/defensive|chaos|brick|free throw parade/i, 'defense'],
-  [/double ot|triple ot|heartbreaker|marathon|epic|free flowing/i, 'rare'],
-  [/easy win|blowout|garbage time/i, 'meta'],
-];
-
-function categoryForLabel(label: string): GroupKey {
+export function categoryForLabel(label: string): GroupKey {
   return (LABEL_PATTERNS.find(([pattern]) => pattern.test(label))?.[1] as GroupKey) || 'flow';
 }
 
-const LABEL_DISPLAY: Record<string, string> = {
-  'no special indicators': '🗑️ Garbage Time',
-  'garbage time': '🗑️ Garbage Time',
+const formatDate = (iso: string) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
 const LabelChip = ({ label }: { label: string }) => {
@@ -129,7 +72,6 @@ const TeamBadge = ({ abbreviation }: { abbreviation: string }) => {
   );
 };
 
-const TIP_JAR_URL = 'https://buymeacoffee.com/jdkdevelopment';
 
 const SettingsModal = ({ 
   visible, 
@@ -154,12 +96,16 @@ const SettingsModal = ({
     });
   };
 
+  const openSupport = () => {
+    Linking.openURL('https://jokuebler.github.io/heatcheck-support/').catch(() => {});
+  };
+
   const openPrivacy = () => {
-    Linking.openURL('https://app-production-2fb0.up.railway.app/privacy').catch(() => {});
+    Linking.openURL('https://jokuebler.github.io/heatcheck-support/#privacy').catch(() => {});
   };
 
   const openTerms = () => {
-    Linking.openURL('https://app-production-2fb0.up.railway.app/terms').catch(() => {});
+    Linking.openURL('https://jokuebler.github.io/heatcheck-support/#terms').catch(() => {});
   };
 
   return (
@@ -227,13 +173,17 @@ const SettingsModal = ({
               <Text style={styles.tipEmoji}>🥤</Text>
               <View style={styles.tipTextWrap}>
                 <Text style={styles.tipTitle}>Buy the Dev a Gatorade</Text>
-                <Text style={styles.tipSubtitle}>Support the project!</Text>
+                <Text style={styles.tipSubtitle}>Help keep the project running</Text>
               </View>
             </Pressable>
           </View>
 
           {/* Legal Links */}
           <View style={styles.legalSection}>
+            <Pressable onPress={openSupport}>
+              <Text style={styles.legalLink}>Support</Text>
+            </Pressable>
+            <Text style={styles.legalDivider}>•</Text>
             <Pressable onPress={openPrivacy}>
               <Text style={styles.legalLink}>Privacy Policy</Text>
             </Pressable>
