@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, StatusBar, ActivityIndicator, RefreshControl, Pressable, Linking, Alert, Modal, Switch, Animated } from 'react-native';
+import Svg, { Path, Defs, Text as SvgText, TextPath } from 'react-native-svg';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, spacing, radius, fonts } from './src/theme';
@@ -63,11 +64,83 @@ const LabelChip = ({ label }: { label: string }) => {
   );
 };
 
-const TeamBadge = ({ abbreviation }: { abbreviation: string }) => {
+const TeamBadge = ({ abbreviation, name, confRank }: { abbreviation: string; name?: string; confRank?: number }) => {
   const { primary, secondary, text } = getTeamVisual(abbreviation);
+  // SVG path from jersey.svg - modified with rounded bottom corners
+  // Main jersey body (large area) with rounded bottom
+  // All paths centered in 511x511 viewBox (original coords shifted: x+0, y+0 since jersey spans ~56-455 x, ~23-487 y)
+  // Center offset: add 56 to x coords to center the 399-wide jersey in 511 (margin = 56 on each side)
+  const mainPath = "M 123.5,23.5 C 147.169,23.3334 170.836,23.5 194.5,24C 234.907,65.9545 275.24,65.9545 315.5,24C 339.5,23.3333 363.5,23.3333 387.5,24C 388.667,25.1667 389.833,26.3333 391,27.5C 391.333,73.5 391.667,119.5 392,165.5C 398.61,197.768 418.443,214.601 451.5,216C 452.667,217.167 453.833,218.333 455,219.5C 455.667,307.5 455.667,395.5 455,453.5C 455,470 445,487 420,487C 320.833,487.667 190.167,487.667 91,487C 66,487 56,470 56,453.5C 55.3333,395.5 55.3333,307.5 56,219.5C 57.1667,218.333 58.3333,217.167 59.5,216C 92.5396,214.621 112.373,197.788 119,165.5C 119.333,119.5 119.667,73.5 120,27.5C 121.376,26.2949 122.542,24.9616 123.5,23.5 Z";
+  // Left arm stitch
+  const leftStitch = "M 120.5,23.5 C 125.833,23.5 131.167,23.5 136.5,23.5C 136.667,65.8346 136.5,108.168 136,150.5C 131.198,186.632 112.032,211.799 78.5,226C 71.4063,228.719 64.073,230.219 56.5,230.5C 56.1725,225.456 56.5059,220.456 57.5,215.5C 92.46,209.04 113.293,188.374 120,153.5C 120.5,110.168 120.667,66.8346 120.5,23.5 Z";
+  // Right arm stitch
+  const rightStitch = "M 374.5,23.5 C 379.833,23.5 385.167,23.5 390.5,23.5C 390.333,66.8346 390.5,110.168 391,153.5C 397.707,188.374 418.54,209.04 453.5,215.5C 454.494,220.456 454.827,225.456 454.5,230.5C 418.713,225.853 393.88,206.853 380,173.5C 377.311,166.057 375.645,158.391 375,150.5C 374.5,108.168 374.333,65.8346 374.5,23.5 Z";
+  // Arc path for city name curved across the jersey chest
+  const arcPath = "M 130 260 Q 255 180 380 260";
+  // Generate unique ID for this badge instance
+  const pathId = `arcPath-${abbreviation}`;
+  // Use full city name
+  const displayName = name || '';
+  // Dynamic font size based on name length - scale to fit full name (scaled up)
+  const getFontSize = (nameLength: number) => {
+    if (nameLength > 14) return 24;
+    if (nameLength > 12) return 27;
+    if (nameLength > 10) return 30;
+    if (nameLength > 8) return 34;
+    if (nameLength > 6) return 38;
+    return 44;
+  };
+  const fontSize = getFontSize(displayName.length);
+  // Jersey number is the conference rank (1-15)
+  const jerseyNumber = confRank ? String(confRank) : '';
+  // SVG viewBox is 399x464, aspect ratio = 0.86. For height 70, width should be 60
   return (
-    <View style={[styles.teamBadge, { backgroundColor: primary, borderColor: secondary }]}>
-      <Text style={[styles.teamBadgeText, { color: text }]}>{abbreviation}</Text>
+    <View style={styles.jerseyContainer}>
+      <Svg width={60} height={70} viewBox="56 23 399 464">
+        {/* Main jersey body */}
+        <Path d={mainPath} fill={primary} />
+        {/* Left arm stitch */}
+        <Path d={leftStitch} fill={secondary} />
+        {/* Right arm stitch */}
+        <Path d={rightStitch} fill={secondary} />
+        {/* City name curved across jersey chest */}
+        {displayName && (
+          <Defs>
+            <Path id={pathId} d={arcPath} />
+          </Defs>
+        )}
+        {displayName && (
+          <SvgText
+            fontSize={fontSize}
+            fontWeight="900"
+            fill={text}
+            textAnchor="middle"
+            fontFamily="System"
+            letterSpacing={1}
+          >
+            <TextPath href={`#${pathId}`} startOffset="50%">
+              {displayName.toUpperCase()}
+            </TextPath>
+          </SvgText>
+        )}
+        {/* Jersey number (conference rank) below the name */}
+        {jerseyNumber && (
+          <SvgText
+            x="255"
+            y="380"
+            fontSize={140}
+            fontWeight="900"
+            fill={text}
+            textAnchor="middle"
+            fontFamily="System"
+            letterSpacing={3}
+          >
+            {jerseyNumber}
+          </SvgText>
+        )}
+      </Svg>
+      {/* Team-colored accent line below jersey */}
+      <View style={[styles.jerseyAccentLine, { backgroundColor: secondary }]} />
     </View>
   );
 };
@@ -226,14 +299,16 @@ const GameCard = ({ game, onOpenHighlights, groupSettings, isVisible }: { game: 
       disabled={isPending}
       style={[styles.card, isPending && styles.cardPending]}
     >
-      <View style={styles.row}>
-        <View style={styles.teamRow}>
-          <TeamBadge abbreviation={away.abbreviation} />
+      {/* Arena name at top center */}
+      {game.arena && (
+        <View style={styles.arenaRow}>
+          <Text style={styles.arenaText}>{game.arena}</Text>
         </View>
+      )}
+      <View style={styles.teamsRow}>
+        <TeamBadge abbreviation={away.abbreviation} name={away.name} confRank={away.conf_rank} />
         <Text style={styles.vsText}>@</Text>
-        <View style={styles.teamRow}>
-          <TeamBadge abbreviation={home.abbreviation} />
-        </View>
+        <TeamBadge abbreviation={home.abbreviation} name={home.name} confRank={home.conf_rank} />
       </View>
       <View style={styles.metaRow}>
         <AnimatedScorePill excitement={excitement} isPending={isPending} isVisible={isVisible} />
@@ -582,10 +657,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  teamsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+  },
   teamRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+  },
+  arenaRow: {
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  arenaText: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '500',
+    letterSpacing: 0.3,
+    opacity: 0.8,
   },
   teamBadge: {
     width: 60,
@@ -607,16 +699,24 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     zIndex: 1,
   },
-  vsText: {
-    color: colors.textSecondary,
-    fontSize: fonts.subtitle,
-    fontWeight: '600',
+  // Jersey-style badge using SVG
+  jerseyContainer: {
+    width: 60,
+    height: 78,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
   },
-  labelsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginTop: spacing.md,
+  jerseyAccentLine: {
+    width: 40,
+    height: 3,
+    borderRadius: 2,
+    marginTop: 4,
+  },
+  // No longer needed: jerseyImage
+  jerseyText: {
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: 0.5,
   },
   chip: {
     borderRadius: radius.md,
@@ -708,7 +808,7 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: spacing.sm,
+    marginTop: spacing.lg,
   },
   headerTitleRow: {
     flexDirection: 'row',
@@ -863,5 +963,16 @@ const styles = StyleSheet.create({
     fontSize: fonts.label,
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  vsText: {
+    color: colors.textSecondary,
+    fontSize: fonts.subtitle,
+    fontWeight: '600',
+  },
+  labelsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.md,
   },
 });

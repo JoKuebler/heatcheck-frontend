@@ -2,6 +2,7 @@ export type Team = {
   id: number;
   abbreviation: string;
   name: string;
+  conf_rank?: number;
 };
 
 export type Game = {
@@ -13,6 +14,7 @@ export type Game = {
   excitement_emoji?: string;
   status?: 'pending' | 'completed';
   status_text?: string;
+  arena?: string;
 };
 
 export type GamesResponse = {

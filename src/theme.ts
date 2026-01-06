@@ -6,14 +6,15 @@ export const colors = {
   textSecondary: '#9BA7B6',
   chipBg: '#1F2937',
   chipText: '#E5E7EB',
-  // Palette clusters (distinct hues around color wheel)
-  accentMatchup: '#D4A24C',   // gold/amber - matchup stakes
-  accentFlow: '#4DABB8',      // cyan/teal - game flow
-  accentTeamStats: '#52B788', // green - team stats
-  accentPlayer: '#E07856',    // orange/coral - player stats
-  accentStat: '#9D7CD8',      // purple - ugly beautiful
-  accentRare: '#E05A9C',      // pink/magenta - statistically rare
-  accentMeta: '#7A8899',      // gray/slate - skip signals
+  // Palette clusters - muted, cohesive tones that complement varied jersey colors
+  // All colors share similar saturation (~45-55%) and lightness (~55-65%) for visual harmony
+  accentMatchup: '#C9A857',   // warm gold - matchup stakes (less saturated, warmer)
+  accentFlow: '#5BA3AD',      // dusty teal - game flow (muted cyan)
+  accentTeamStats: '#6AAE82', // sage green - team stats (softer green)
+  accentPlayer: '#CD7E64',    // terracotta - player stats (muted coral)
+  accentStat: '#9B8ABF',      // dusty lavender - ugly beautiful (softer purple)
+  accentRare: '#C76E99',      // dusty rose - statistically rare (muted pink)
+  accentMeta: '#6B7A8A',      // cool slate - skip signals (slightly more visible)
   // Excitement score borders (boring → exciting: charcoal to warm gold)
   scoreBorder1: '#2B2F36',  // very dull
   scoreBorder2: '#3C2F39',  // muted maroon
