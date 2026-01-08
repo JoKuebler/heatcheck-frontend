@@ -1,10 +1,12 @@
+export const SUPPORT_URL = 'https://jokuebler.github.io/heatcheckr-support/';
 import { colors } from './theme';
 
 export const API_BASE = 'https://app-production-2fb0.up.railway.app/api/games';
 export const CACHE_KEY = 'games_cache_latest';
 export const HIGHLIGHT_WARNING_KEY = 'highlight_warning_seen_v1';
 export const SETTINGS_KEY = 'label_group_settings_v1';
-export const TIP_JAR_URL = 'https://buymeacoffee.com/jdkdevelopment';
+
+export const BEHIND_THE_SCENES_URL = 'https://jokuebler.github.io/heatcheckr-support/';
 
 export const LEGEND = [
   { name: 'Matchup Stakes', color: colors.accentMatchup, key: 'matchup' },

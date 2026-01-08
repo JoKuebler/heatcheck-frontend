@@ -21,7 +21,8 @@ import {
   CACHE_KEY,
   HIGHLIGHT_WARNING_KEY,
   SETTINGS_KEY,
-  TIP_JAR_URL
+  BEHIND_THE_SCENES_URL,
+  SUPPORT_URL
 } from './src/constants';
 import {
   enablePushNotifications,
@@ -85,6 +86,51 @@ const getKickerText = (offset: number): string => {
   if (offset === 0) return 'Previous night';
   if (offset === 1) return "Tonight's games";
   return 'Upcoming games';
+};
+
+// Convert ET time string (e.g., "7:00 pm ET") to user's local time
+const convertETtoLocalTime = (etTimeStr: string, gamesDate: string): string => {
+  if (!etTimeStr || !gamesDate) return etTimeStr || '';
+  
+  // Parse time like "7:00 pm ET" or "10:30 am ET"
+  const match = etTimeStr.match(/(\d{1,2}):(\d{2})\s*([ap]m)/i);
+  if (!match) return etTimeStr;
+  
+  let hour = parseInt(match[1], 10);
+  const minute = parseInt(match[2], 10);
+  const ampm = match[3].toLowerCase();
+  
+  // Convert to 24-hour format
+  if (ampm === 'pm' && hour !== 12) hour += 12;
+  if (ampm === 'am' && hour === 12) hour = 0;
+  
+  // Parse the game date (YYYY-MM-DD)
+  const [year, month, day] = gamesDate.split('-').map(Number);
+  if (!year || !month || !day) return etTimeStr;
+  
+  // Create a date string that we can parse as ET
+  // Format: "2026-01-08T19:00:00" then interpret in America/New_York
+  const etDateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
+  
+  // Use Intl.DateTimeFormat to find ET offset and convert
+  const etFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+  
+  // Get current ET offset by checking a known date
+  const testDate = new Date(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T12:00:00Z`);
+  const etParts = etFormatter.formatToParts(testDate);
+  const etHour = parseInt(etParts.find(p => p.type === 'hour')?.value || '12', 10);
+  const utcHour = 12;
+  const etOffsetHours = etHour - utcHour; // Negative for behind UTC (ET is -5 or -4)
+  
+  // Create UTC date from ET time
+  const utcDate = new Date(Date.UTC(year, month - 1, day, hour - etOffsetHours, minute));
+  
+  // Format in user's local timezone
+  return utcDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 };
 
 const LabelChip = ({ label }: { label: string }) => {
@@ -197,22 +243,21 @@ const SettingsModal = ({
   notificationsSupported: boolean;
   onToggleNotifications: () => void;
 }) => {
-  const openTipJar = () => {
-    Linking.openURL(TIP_JAR_URL).catch(() => {
-      // Silently fail if can't open URL
-    });
-  };
 
   const openSupport = () => {
-    Linking.openURL('https://jokuebler.github.io/heatcheckr-support/').catch(() => {});
+    Linking.openURL(SUPPORT_URL).catch(() => {});
   };
 
   const openPrivacy = () => {
-    Linking.openURL('https://jokuebler.github.io/heatcheckr-support/#privacy').catch(() => {});
+    Linking.openURL(SUPPORT_URL + '#privacy').catch(() => {});
   };
 
   const openTerms = () => {
-    Linking.openURL('https://jokuebler.github.io/heatcheckr-support/#terms').catch(() => {});
+    Linking.openURL(SUPPORT_URL + '#terms').catch(() => {});
+  };
+
+  const openBehindTheScenes = () => {
+    Linking.openURL(BEHIND_THE_SCENES_URL).catch(() => {});
   };
 
   return (
@@ -274,13 +319,12 @@ const SettingsModal = ({
             />
           </View>
           
-          {/* Tip Jar Section */}
+          {/* Behind the Scenes Button */}
           <View style={styles.tipSection}>
-            <Pressable style={styles.tipButton} onPress={openTipJar}>
-              <Text style={styles.tipEmoji}>🥤</Text>
+            <Pressable style={styles.tipButton} onPress={openBehindTheScenes}>
+              <Text style={styles.tipEmoji}>🎬</Text>
               <View style={styles.tipTextWrap}>
-                <Text style={styles.tipTitle}>Buy the Dev a Gatorade</Text>
-                <Text style={styles.tipSubtitle}>Help keep the project running</Text>
+                <Text style={styles.tipTitle}>Behind the Scenes</Text>
               </View>
             </Pressable>
           </View>
@@ -309,7 +353,7 @@ const SettingsModal = ({
   );
 };
 
-const GameCard = ({ game, onOpenHighlights, groupSettings, isVisible }: { game: Game; onOpenHighlights: (game: Game) => void; groupSettings: GroupSettings; isVisible: boolean }) => {
+const GameCard = ({ game, gamesDate, onOpenHighlights, groupSettings, isVisible }: { game: Game; gamesDate: string; onOpenHighlights: (game: Game) => void; groupSettings: GroupSettings; isVisible: boolean }) => {
   const home = game.home_team;
   const away = game.away_team;
   const isPending = game.status === 'pending';
@@ -349,7 +393,7 @@ const GameCard = ({ game, onOpenHighlights, groupSettings, isVisible }: { game: 
       <View style={styles.metaRow}>
         {isScheduled && game.game_time ? (
           <View style={styles.gameTimePill}>
-            <Text style={styles.gameTimeText}>🕐 {game.game_time}</Text>
+            <Text style={styles.gameTimeText}>🕐 {convertETtoLocalTime(game.game_time, gamesDate)}</Text>
           </View>
         ) : (
           <AnimatedScorePill excitement={excitement} isPending={isPending} isVisible={isVisible} />
@@ -828,6 +872,7 @@ export default function App() {
                   renderItem={({ item }) => (
                     <GameCard 
                       game={item} 
+                      gamesDate={page0Data.date}
                       onOpenHighlights={openHighlights} 
                       groupSettings={groupSettings} 
                       isVisible={true}
@@ -864,6 +909,7 @@ export default function App() {
                   renderItem={({ item }) => (
                     <GameCard 
                       game={item} 
+                      gamesDate={page1Data.date}
                       onOpenHighlights={openHighlights} 
                       groupSettings={groupSettings} 
                       isVisible={true}
@@ -900,6 +946,7 @@ export default function App() {
                   renderItem={({ item }) => (
                     <GameCard 
                       game={item} 
+                      gamesDate={page2Data.date}
                       onOpenHighlights={openHighlights} 
                       groupSettings={groupSettings} 
                       isVisible={true}
@@ -910,14 +957,10 @@ export default function App() {
                   scrollEventThrottle={16}
                   ListEmptyComponent={
                     <View style={styles.center}>
-                      <Text style={styles.loadingText}>No scheduled games</Text>
-                    </View>
-                  }
-                  ListFooterComponent={
-                    <View style={styles.legendWrap}>
-                      <Text style={styles.futureGamesHint}>
-                        Swipe left for tomorrow • Swipe right for yesterday
-                      </Text>
+                      <View style={{ alignItems: 'center' }}>
+                        <Text style={styles.emptyHeader}>No games tonight</Text>
+                        <Text style={styles.emptySubtext}>Time to work on your jump shot! ⛹️‍♂️</Text>
+                      </View>
                     </View>
                   }
                 />
@@ -1327,5 +1370,18 @@ const styles = StyleSheet.create({
     fontSize: fonts.label,
     fontWeight: '500',
     letterSpacing: 0.3,
+  },
+  emptyHeader: {
+    color: colors.textPrimary,
+    fontSize: 22,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  emptySubtext: {
+    color: colors.textSecondary,
+    fontSize: 15,
+    fontWeight: '500',
+    textAlign: 'center',
   },
 });
